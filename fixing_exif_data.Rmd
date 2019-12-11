@@ -1,0 +1,70 @@
+---
+title: "Nepal Plots"
+author: "Fiona Spooner"
+date: "12 September 2019"
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(vroom)
+library(stringr)
+library(dplyr)
+library(lubridate)
+```
+
+
+```{r}
+exif<-vroom::vroom("nepal_all_data_exif_out.csv")
+```
+
+Fixing the exif data - need the known difference between the real time and the camera time for this to work.
+
+```{r}
+
+exif_dates<-vroom::vroom("Time_differences_cameras_nepal_fixed2.csv")
+exif_dates$Camera_Date_Time<-as.POSIXct(exif_dates$Camera_Date_Time, format = "%d/%m/%Y %H:%M", tz = "UTC")
+exif_dates$Real_Date_Time<-as.POSIXct(exif_dates$Real_Date_Time, format = "%d/%m/%Y %H:%M", tz = "UTC")
+
+exif_dates$Difference<-exif_dates$Real_Date_Time - exif_dates$Camera_Date_Time # the difference between the correct time and the camera time in seconds
+
+
+fp_spl<-strsplit(exif$filepath, "/")
+
+month_catcher<-function(filepath){
+  
+  months<-filepath[4]  
+  return(months)
+}
+
+month_out<-lapply(fp_spl,month_catcher) 
+month_out<-unlist(month_out)
+
+exif$month<-as.character(month_out)
+
+exif %>% 
+  group_by(site_cam, month) %>% 
+  summarise(start_date = min(datetime), end_date = max(datetime)) %>% 
+  arrange(site_cam)
+
+
+
+exif_fix<-merge(exif, exif_dates, by.x = c("month", "site_cam"), by.y = c("Month","Station"), all = TRUE)
+
+exif_fix$Difference[is.na(exif_fix$Difference)]<-0
+
+exif_fix$datetime_digitized<-as.POSIXct(exif_fix$datetime_digitized, format = "%Y:%m:%d %H:%M:%S")
+
+exif_fix$fixed_date_time<-exif_fix$datetime_digitized + exif_fix$Difference
+
+exif_fix$date_fixed<-as.Date(exif_fix$fixed_date_time)
+
+write.csv(exif_fix, "nepal_exif_fixed.csv", row.names = FALSE)
+
+
+```

@@ -1,0 +1,64 @@
+---
+title: "Nepal Plots"
+author: "Fiona Spooner"
+date: "12 September 2019"
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(vroom)
+library(stringr)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+
+```{r}
+
+exif_fix <- vroom::vroom("nepal_exif_fixed.csv")
+
+tal_exif<-exif_fix %>% 
+  group_by(date_fixed, site_cam, Site.ID) %>%
+  filter(year(date_fixed) == 2019) %>% 
+  #select(site_cam) %>% 
+  tally()
+
+```
+
+```{r}
+
+
+bad_exif<-exif_fix %>% 
+  group_by(date_fixed, site_cam, Site.ID) %>%
+  filter(year(date_fixed) != 2019) 
+  #select(site_cam) %>% 
+  #tally()
+
+#write.csv(bad_exif, "dodgy_nepal_images.csv", row.names = FALSE)
+
+
+```
+
+```{r}
+
+col1 = "#d8e1cf" 
+col2 = "#438484"
+
+ggplot(tal_exif, aes(date_fixed, site_cam)) +
+  geom_tile(aes(fill = n),colour = "white", na.rm = T) +
+  scale_fill_gradient(low = col1, high = col2) +  
+  guides(fill=guide_legend(title="Total Images")) +
+  theme_minimal() +
+  labs(title = "",
+       x = "Date", y = "Camera Trap") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+```
+
